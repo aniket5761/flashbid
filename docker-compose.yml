@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: flashbid-db
+    environment:
+      POSTGRES_DB: flashbid
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: flashbid-redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: flashbid-app
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/flashbid
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SPRING_JWT_SECRET: "thisisthesecretkeythisisthesecreetkeythisissecret"
