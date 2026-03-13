@@ -29,4 +29,4 @@ services:
       SPRING_DATASOURCE_PASSWORD: password
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      SPRING_JWT_SECRET: "thisisthesecretkeythisisthesecreetkeythisissecret"
+      SPRING_JWT_SECRET: "thisisthesecretkeythisisthesecretkeythisisthesecretkey"
