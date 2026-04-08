@@ -1,26 +1,27 @@
 server:
   port: ${PORT:8080}
+
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flashbid}
-    username: ${SPRING_DATASOURCE_USERNAME:user}
-    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
+      ssl:
+        enabled: true
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    open-in-view: false
+
   jwt:
-    secret: ${SPRING_JWT_SECRET:${JWT_SECRET:thisisthesecretkeythisisthesecretkeythisisthesecretkey}}
+    secret: ${SPRING_JWT_SECRET}
 
 logging:
   level:
-    org.springframework: INFO
+    root: INFO
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
