@@ -24,3 +24,9 @@ logging:
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
+
+springdoc:
+  api-docs:
+    path: /api/apidocs
+  swagger-ui:
+    path: /swagger-ui.html
