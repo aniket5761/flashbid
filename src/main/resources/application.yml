@@ -12,9 +12,7 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT}
       password: ${SPRING_DATA_REDIS_PASSWORD}
-      ssl:
-        enabled: true
-
+      ssl: true
 
   jwt:
     secret: ${SPRING_JWT_SECRET}
