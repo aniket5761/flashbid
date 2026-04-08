@@ -41,4 +41,13 @@ public class User {
     @Column(name = "role")
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @Column(name = "seller_requested", nullable = false)
+    private boolean sellerRequested = false;
+
+    @Column(name = "banned", nullable = false)
+    private boolean banned = false;
+
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
 }

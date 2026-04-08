@@ -18,6 +18,10 @@ public class ProductDto {
     private Long id;
     private String name;
     private Long startingPrice;
+    private Long minimumIncrement;
+    private Long currentBid;
+    private Long nextMinimumBid;
+    private Long bidCount;
     
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;

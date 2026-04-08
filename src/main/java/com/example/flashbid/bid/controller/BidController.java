@@ -29,4 +29,11 @@ public class BidController {
             @RequestParam Optional<Integer> page) {
         return ResponseEntity.ok(bidService.getBidsByProductId(productId, page));
     }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Page<BidDto>> getBidsByUserId(
+            @PathVariable Long userId,
+            @RequestParam Optional<Integer> page) {
+        return ResponseEntity.ok(bidService.getBidsByUserId(userId, page));
+    }
 }

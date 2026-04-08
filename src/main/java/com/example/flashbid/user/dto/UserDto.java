@@ -20,4 +20,7 @@ public class UserDto {
     private String email;
     private Role role;
     private LocalDateTime registrationDate;
+    private boolean sellerRequested;
+    private boolean banned;
+    private boolean deleted;
 }

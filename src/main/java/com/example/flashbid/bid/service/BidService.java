@@ -1,44 +1,60 @@
 package com.example.flashbid.bid.service;
 
+import com.example.flashbid.auction.entity.Auction;
+import com.example.flashbid.auction.repo.AuctionRepo;
+import com.example.flashbid.auction.service.AuctionManagementService;
 import com.example.flashbid.bid.dto.BidDto;
 import com.example.flashbid.bid.dto.CreateBidDto;
 import com.example.flashbid.bid.entity.Bid;
 import com.example.flashbid.bid.repo.BidRepo;
 import com.example.flashbid.common.exception.BidAccessDeniedException;
 import com.example.flashbid.common.exception.BidException;
-import com.example.flashbid.common.handlers.SocketConnectionHandler;
+import com.example.flashbid.common.exception.ResourceNotFoundException;
+import com.example.flashbid.common.redis.AuctionLiveUpdateService;
+import com.example.flashbid.common.redis.AuctionRedisCacheService;
+import com.example.flashbid.common.redis.AuctionSummaryCache;
 import com.example.flashbid.common.util.EntityFetcher;
 import com.example.flashbid.product.entity.Product;
-import com.example.flashbid.product.entity.ProductStatus;
 import com.example.flashbid.user.entity.User;
+import com.example.flashbid.user.entity.Role;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BidService {
 
+    private final AuctionRepo auctionRepo;
+    private final AuctionManagementService auctionManagementService;
     private final BidRepo bidRepo;
     private final EntityFetcher entityFetcher;
-    private final SocketConnectionHandler socketConnectionHandler;
+    private final AuctionRedisCacheService auctionRedisCacheService;
+    private final AuctionLiveUpdateService auctionLiveUpdateService;
 
     @Transactional
     public BidDto placeBid(CreateBidDto createBidDto) {
-        Product product = entityFetcher.getProductById(createBidDto.getProductId());
+        Auction auction = auctionRepo.findByProductIdForUpdate(createBidDto.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found for product id: " + createBidDto.getProductId()));
+        Product product = auction.getProduct();
         User user = entityFetcher.getCurrentUser();
+
+        auctionManagementService.syncAuctionStatus(auction);
 
         Long currentHighest = bidRepo.findTopByProductOrderByAmountDesc(product)
                 .map(Bid::getAmount)
                 .orElse(product.getStartingPrice());
 
-        if (product.getProductStatus() != ProductStatus.OPEN) {
+        if (auction.getStatus() != com.example.flashbid.product.entity.ProductStatus.OPEN) {
             throw new BidException("Bidding is not allowed. Auction is not open.");
         }
 
@@ -46,12 +62,13 @@ public class BidService {
             throw new BidAccessDeniedException("You cannot bid on your own product.");
         }
 
-        if (LocalDateTime.now().isAfter(product.getEndTime())) {
-            throw new BidException("Auction has already ended at: " + product.getEndTime());
+        if (LocalDateTime.now().isAfter(auction.getEndTime())) {
+            throw new BidException("Auction has already ended at: " + auction.getEndTime());
         }
 
-        if (createBidDto.getAmount() <= currentHighest) {
-            throw new BidException("Bid must be higher than current highest bid: " + currentHighest);
+        Long minimumAllowed = currentHighest + auction.getMinimumIncrement();
+        if (createBidDto.getAmount() < minimumAllowed) {
+            throw new BidException("Bid must be at least " + minimumAllowed + " for this auction.");
         }
 
         Bid bid = new Bid();
@@ -62,24 +79,25 @@ public class BidService {
 
         Bid savedBid = bidRepo.save(bid);
         BidDto bidDto = mapToDto(savedBid);
-
-        try {
-            socketConnectionHandler.sendBidToProduct(bidDto);
-        } catch (IOException e) {
-            // Log the error but don't fail the transaction as the bid is saved
-            System.err.println("Failed to send real-time update: " + e.getMessage());
-        }
+        auctionLiveUpdateService.scheduleBidPlaced(product.getId(), bidDto);
 
         return bidDto;
     }
 
+    @Transactional
     public Page<BidDto> getBidsByProductId(Long productId, Optional<Integer> page) {
-        PageRequest pageRequest = PageRequest.of(
-                page.orElse(0),
-                12
-        );
+        int pageNumber = page.orElse(0);
+        PageRequest pageRequest = PageRequest.of(pageNumber, 12);
 
-        Page<Bid> bids = bidRepo.findByProductIdOrderByAmountDesc(productId, pageRequest);
+        if (pageNumber == 0) {
+            List<BidDto> recentBids = auctionRedisCacheService.getRecentBids(productId);
+            AuctionSummaryCache summary = auctionRedisCacheService.getSummary(productId);
+            if (!recentBids.isEmpty() && summary != null) {
+                return new PageImpl<>(recentBids, pageRequest, summary.getBidCount());
+            }
+        }
+
+        Page<Bid> bids = bidRepo.findByProductIdOrderByTimestampDesc(productId, pageRequest);
         return bids.map(this::mapToDto);
     }
 
@@ -88,8 +106,19 @@ public class BidService {
                 .id(bid.getId())
                 .productId(bid.getProduct().getId())
                 .amount(bid.getAmount())
+                .bidderId(bid.getUser().getId())
                 .bidderUsername(bid.getUser().getUsername())
                 .timestamp(bid.getTimestamp())
                 .build();
+    }
+
+    @Transactional
+    public Page<BidDto> getBidsByUserId(Long userId, Optional<Integer> page) {
+        User currentUser = entityFetcher.getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN && !currentUser.getId().equals(userId)) {
+            throw new BidAccessDeniedException("You do not have permission to view this bid history.");
+        }
+        PageRequest pageRequest = PageRequest.of(page.orElse(0), 12);
+        return bidRepo.findByUserIdOrderByTimestampDesc(userId, pageRequest).map(this::mapToDto);
     }
 }

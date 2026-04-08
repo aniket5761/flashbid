@@ -15,13 +15,30 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class JWTAuthFilter extends OncePerRequestFilter {
 
+    private static final List<String> PUBLIC_GET_PREFIXES = List.of(
+            "/api/products",
+            "/api/auctions/winner",
+            "/ws"
+    );
+
     private final JWTService jwtService;
     private final UserInfoService userInfoService;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+
+        String path = request.getServletPath();
+        return PUBLIC_GET_PREFIXES.stream().anyMatch(path::startsWith);
+    }
 
     @Override
     protected void doFilterInternal(
@@ -43,7 +60,7 @@ public class JWTAuthFilter extends OncePerRequestFilter {
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userInfoService.loadUserByUsername(username);
-            if (jwtService.validateToken(jwt, userDetails)) {
+            if (userDetails.isAccountNonLocked() && userDetails.isEnabled() && jwtService.validateToken(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,

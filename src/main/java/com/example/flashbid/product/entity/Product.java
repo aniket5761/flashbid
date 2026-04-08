@@ -47,5 +47,4 @@ public class Product {
     @Column(name = "product_status")
     private ProductStatus productStatus;
 
-    // Bids and AuctionWinner will be added later when those modules are implemented
 }

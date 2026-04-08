@@ -1,11 +1,15 @@
 package com.example.flashbid.auction.service;
 
+import com.example.flashbid.auction.repo.AuctionRepo;
+import com.example.flashbid.common.redis.AuctionLiveUpdateService;
+import com.example.flashbid.common.redis.AuctionRedisCacheService;
 import com.example.flashbid.product.entity.Product;
 import com.example.flashbid.product.entity.ProductStatus;
-import com.example.flashbid.product.repo.ProductRepo;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +21,18 @@ import java.util.List;
 @Slf4j
 public class AuctionStatusScheduler {
 
-    private final ProductRepo productRepo;
-    private final AuctionWinnerService auctionWinnerService;
+    private final AuctionRepo auctionRepo;
+    private final AuctionManagementService auctionManagementService;
+    private final AuctionRedisCacheService auctionRedisCacheService;
+    private final AuctionLiveUpdateService auctionLiveUpdateService;
 
-    @Scheduled(cron = "0 * * * * *")
+    @EventListener(ApplicationReadyEvent.class)
+    public void warmAuctionIndexes() {
+        bootstrapStatus(ProductStatus.SCHEDULED);
+        bootstrapStatus(ProductStatus.OPEN);
+    }
+
+    @Scheduled(fixedRate = 5000)
     public void updateAuctions() {
         openScheduledAuctions();
         closeExpiredAuctions();
@@ -28,36 +40,32 @@ public class AuctionStatusScheduler {
 
     @Transactional
     protected void openScheduledAuctions() {
-        List<Product> toOpen = productRepo.findByProductStatusAndStartTimeLessThanEqual(ProductStatus.SCHEDULED, LocalDateTime.now());
-        if (!toOpen.isEmpty()) {
-            toOpen.forEach(p -> {
-                p.setProductStatus(ProductStatus.OPEN);
-                log.info("Auction opened for product ID: {}", p.getId());
-            });
-            productRepo.saveAll(toOpen);
-        }
+        List<Long> dueAuctionIds = auctionRedisCacheService.getDueScheduledAuctionIds(LocalDateTime.now());
+        if (dueAuctionIds.isEmpty()) return;
+
+        dueAuctionIds.forEach(productId -> auctionRepo.findByProductIdForUpdate(productId).ifPresent(auction -> {
+            auctionManagementService.syncAuctionStatus(auction);
+            Product product = auction.getProduct();
+            log.info("Auction opened for product ID: {}", product.getId());
+        }));
     }
 
     @Transactional
     protected void closeExpiredAuctions() {
-        List<Product> toClose = productRepo.findByProductStatusAndEndTimeLessThanEqual(ProductStatus.OPEN, LocalDateTime.now());
-        if (toClose.isEmpty()) return;
+        List<Long> dueAuctionIds = auctionRedisCacheService.getDueClosingAuctionIds(LocalDateTime.now());
+        if (dueAuctionIds.isEmpty()) return;
 
-        toClose.forEach(p -> {
+        dueAuctionIds.forEach(productId -> auctionRepo.findByProductIdForUpdate(productId).ifPresent(auction -> {
             try {
-                p.setProductStatus(ProductStatus.CLOSED);
-                // Try to determine winner
-                try {
-                    auctionWinnerService.createWinner(p);
-                    log.info("Winner determined and auction closed for product ID: {}", p.getId());
-                } catch (Exception e) {
-                    log.warn("No winner found for product ID: {} - {}", p.getId(), e.getMessage());
-                }
+                auctionManagementService.closeAuction(auction);
             } catch (Exception e) {
-                log.error("Failed to close auction for product ID: {}", p.getId(), e);
+                log.error("Failed to close auction for product ID: {}", auction.getProduct().getId(), e);
             }
-        });
+        }));
+    }
 
-        productRepo.saveAll(toClose);
+    private void bootstrapStatus(ProductStatus status) {
+        auctionRepo.findByStatus(status)
+                .forEach(auction -> auctionLiveUpdateService.refreshAndPublish(auction.getProduct().getId(), "BOOTSTRAP"));
     }
 }

@@ -1,13 +1,14 @@
 package com.example.flashbid.auction.service;
 
+import com.example.flashbid.auction.entity.Auction;
 import com.example.flashbid.auction.dto.AuctionWinnerDto;
 import com.example.flashbid.auction.entity.AuctionWinner;
+import com.example.flashbid.auction.repo.AuctionRepo;
 import com.example.flashbid.auction.repo.AuctionWinnerRepo;
 import com.example.flashbid.bid.entity.Bid;
 import com.example.flashbid.bid.repo.BidRepo;
 import com.example.flashbid.common.exception.BidException;
 import com.example.flashbid.common.exception.ResourceNotFoundException;
-import com.example.flashbid.common.util.EntityFetcher;
 import com.example.flashbid.product.dto.ProductDto;
 import com.example.flashbid.product.entity.Product;
 import com.example.flashbid.product.entity.ProductStatus;
@@ -23,11 +24,16 @@ import java.util.Optional;
 public class AuctionWinnerService {
 
     private final AuctionWinnerRepo auctionWinnerRepo;
+    private final AuctionRepo auctionRepo;
     private final BidRepo bidRepo;
-    private final EntityFetcher entityFetcher;
 
     @Transactional
     public AuctionWinner createWinner(Product product) {
+        Optional<AuctionWinner> existingWinner = auctionWinnerRepo.findByProductId(product.getId());
+        if (existingWinner.isPresent()) {
+            return existingWinner.get();
+        }
+
         Optional<Bid> winningBidOpt = bidRepo.findTopByProductOrderByAmountDesc(product);
 
         if (winningBidOpt.isEmpty()) {
@@ -46,9 +52,10 @@ public class AuctionWinnerService {
     }
 
     public AuctionWinnerDto getAuctionWinner(Long productId) {
-        Product product = entityFetcher.getProductById(productId);
+        Auction auction = auctionRepo.findByProductId(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found for product ID: " + productId));
 
-        if (product.getProductStatus() != ProductStatus.CLOSED) {
+        if (auction.getStatus() != ProductStatus.CLOSED) {
             throw new BidException("Auction is still ongoing for product ID: " + productId);
         }
 
@@ -60,11 +67,25 @@ public class AuctionWinnerService {
 
     private AuctionWinnerDto mapToDto(AuctionWinner winner) {
         Product product = winner.getProduct();
-        UserDto userDto = UserDto.builder()
+        Auction auction = auctionRepo.findByProductId(product.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Auction not found for product ID: " + product.getId()));
+        UserDto winnerDto = UserDto.builder()
                 .id(winner.getUser().getId())
                 .username(winner.getUser().getUsername())
                 .email(winner.getUser().getEmail())
                 .role(winner.getUser().getRole())
+                .deleted(winner.getUser().isDeleted())
+                .build();
+
+        UserDto sellerDto = UserDto.builder()
+                .id(product.getUser().getId())
+                .username(product.getUser().getUsername())
+                .firstName(product.getUser().getFirstName())
+                .lastName(product.getUser().getLastName())
+                .email(product.getUser().getEmail())
+                .role(product.getUser().getRole())
+                .registrationDate(product.getUser().getRegistrationDate())
+                .deleted(product.getUser().isDeleted())
                 .build();
 
         ProductDto productDto = ProductDto.builder()
@@ -72,16 +93,20 @@ public class AuctionWinnerService {
                 .name(product.getName())
                 .description(product.getDescription())
                 .startingPrice(product.getStartingPrice())
-                .startTime(product.getStartTime())
-                .endTime(product.getEndTime())
-                .productStatus(product.getProductStatus())
-                .user(userDto)
+                .minimumIncrement(auction.getMinimumIncrement())
+                .currentBid(winner.getAmount())
+                .nextMinimumBid(winner.getAmount() + auction.getMinimumIncrement())
+                .bidCount(bidRepo.countByProductId(product.getId()))
+                .startTime(auction.getStartTime())
+                .endTime(auction.getEndTime())
+                .productStatus(auction.getStatus())
+                .user(sellerDto)
                 .build();
 
         return AuctionWinnerDto.builder()
                 .id(winner.getId())
                 .amount(winner.getAmount())
-                .user(userDto)
+                .user(winnerDto)
                 .product(productDto)
                 .build();
     }

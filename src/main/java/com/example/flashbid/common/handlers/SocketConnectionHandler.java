@@ -2,6 +2,7 @@ package com.example.flashbid.common.handlers;
 
 import com.example.flashbid.bid.dto.BidDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Slf4j
 public class SocketConnectionHandler extends TextWebSocketHandler {
 
     private final Map<Long, List<WebSocketSession>> sessionsByProduct = new ConcurrentHashMap<>();
@@ -27,7 +29,7 @@ public class SocketConnectionHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        System.out.println(session.getId() + " Connected");
+        log.info("WebSocket session connected: {}", session.getId());
     }
 
     @Override
@@ -42,7 +44,7 @@ public class SocketConnectionHandler extends TextWebSocketHandler {
             sessions.add(session);
         }
 
-        System.out.println("Session " + session.getId() + " subscribed to product " + productId);
+        log.info("WebSocket session {} subscribed to product {}", session.getId(), productId);
     }
 
     @Override
@@ -50,7 +52,7 @@ public class SocketConnectionHandler extends TextWebSocketHandler {
         for (List<WebSocketSession> sessions : sessionsByProduct.values()) {
             sessions.remove(session);
         }
-        System.out.println(session.getId() + " Disconnected");
+        log.info("WebSocket session disconnected: {}", session.getId());
     }
 
     public void sendBidToProduct(BidDto bidDto) throws IOException {

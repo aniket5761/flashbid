@@ -15,6 +15,7 @@ public class BidDto {
     private Long id;
     private Long productId;
     private Long amount;
+    private Long bidderId;
     private String bidderUsername;
     private LocalDateTime timestamp;
 }

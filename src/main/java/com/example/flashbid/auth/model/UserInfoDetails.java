@@ -13,11 +13,13 @@ public class UserInfoDetails implements UserDetails {
     private final String username;
     private final String password;
     private final List<GrantedAuthority> authorities;
+    private final boolean accountNonLocked;
 
     public UserInfoDetails(User user) {
         this.username = user.getUsername();
         this.password = user.getPassword();
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        this.accountNonLocked = !user.isBanned();
     }
 
     @Override
@@ -42,7 +44,7 @@ public class UserInfoDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return accountNonLocked;
     }
 
     @Override

@@ -22,6 +22,7 @@ public class ProductController {
 
     private final ProductService productService;
 
+    @PreAuthorize("hasAnyRole('SELLER','ADMIN')")
     @PostMapping
     public ResponseEntity<ProductDto> addProduct(@Valid @RequestBody CreateProductDto createProductDto) {
         return ResponseEntity.ok(productService.addProduct(createProductDto));
@@ -50,11 +51,11 @@ public class ProductController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ProductDto> editProduct(@PathVariable("id") Long id,
-                                           @RequestBody EditProductDto editProductDto) {
+                                           @Valid @RequestBody EditProductDto editProductDto) {
         return ResponseEntity.ok(productService.editProduct(id, editProductDto));
     }
 
-    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','SELLER','ADMIN')")
     @DeleteMapping("/{productId}")
     public ResponseEntity<String> deleteProduct(@PathVariable("productId") Long productId) {
         return ResponseEntity.ok(productService.deleteProduct(productId));

@@ -38,7 +38,10 @@ public class AuthService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole() != null ? request.getRole() : Role.USER);
+        user.setRole(Role.USER);
+        user.setSellerRequested(false);
+        user.setBanned(false);
+        user.setDeleted(false);
         user.setRegistrationDate(LocalDateTime.now());
 
         User savedUser = userRepo.save(user);
@@ -55,7 +58,7 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
 
-        User user = userRepo.findByUsername(request.getUsername())
+        User user = userRepo.findByUsernameAndDeletedFalse(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         String token = jwtService.generateToken(user.getUsername());
@@ -75,6 +78,9 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .registrationDate(user.getRegistrationDate())
+                .sellerRequested(user.isSellerRequested())
+                .banned(user.isBanned())
+                .deleted(user.isDeleted())
                 .build();
     }
 }
