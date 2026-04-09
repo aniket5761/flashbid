@@ -213,7 +213,7 @@ export default function HomePage() {
                 : "Browse open auctions and place your next bid before the timer closes."}
           </p>
           <div className="mt-5">
-            <Link to={user.role === "ADMIN" ? "/admin" : user.role === "SELLER" ? "/products/new" : "/products"} className="button-secondary !border-white/15 !bg-white/10 !text-white hover:!bg-white/16">
+            <Link to={user.role === "ADMIN" ? "/admin" : user.role === "SELLER" ? "/products/new" : "/products"} className="button-secondary border-white/15! bg-white/10! text-white! hover:bg-white/16!">
               {user.role === "ADMIN" ? "Open admin tools" : user.role === "SELLER" ? "Create auction" : "Browse live auctions"}
             </Link>
           </div>
@@ -307,7 +307,7 @@ export default function HomePage() {
 
 function OverviewInfo({ label, value }) {
   return (
-    <div className="rounded-[24px] border border-ink/10 bg-white px-4 py-4">
+    <div className="rounded-3xl border border-ink/10 bg-white px-4 py-4">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/40">{label}</p>
       <p className="mt-3 font-display text-3xl font-bold text-ink">{value}</p>
     </div>

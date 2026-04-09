@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -51,16 +52,22 @@ public class AuctionWinnerService {
         return auctionWinnerRepo.save(auctionWinner);
     }
 
+    @Transactional
     public AuctionWinnerDto getAuctionWinner(Long productId) {
-        Auction auction = auctionRepo.findByProductId(productId)
+        Auction auction = auctionRepo.findByProductIdForUpdate(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Auction not found for product ID: " + productId));
+
+        if (auction.getStatus() != ProductStatus.CLOSED && !LocalDateTime.now().isBefore(auction.getEndTime())) {
+            auction.setStatus(ProductStatus.CLOSED);
+            auction.getProduct().setProductStatus(ProductStatus.CLOSED);
+        }
 
         if (auction.getStatus() != ProductStatus.CLOSED) {
             throw new BidException("Auction is still ongoing for product ID: " + productId);
         }
 
         AuctionWinner winner = auctionWinnerRepo.findByProductId(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Winner not found for product ID: " + productId));
+                .orElseGet(() -> createWinner(auction.getProduct()));
 
         return mapToDto(winner);
     }

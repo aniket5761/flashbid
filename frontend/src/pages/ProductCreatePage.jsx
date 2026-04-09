@@ -77,7 +77,7 @@ export default function ProductCreatePage() {
           onChange={(event) => update("minimumIncrement", event.target.value)}
           placeholder="25"
         />
-        <div className="rounded-[24px] border border-ink/10 bg-sand/55 px-5 py-5 text-sm leading-7 text-ink/65">
+        <div className="rounded-3xl border border-ink/10 bg-sand/55 px-5 py-5 text-sm leading-7 text-ink/65">
           Choose when the auction starts and ends. FlashBid will move it through scheduled, open, and closed states automatically.
         </div>
         <Field label="Start time" type="datetime-local" value={form.startTime} onChange={(event) => update("startTime", event.target.value)} />

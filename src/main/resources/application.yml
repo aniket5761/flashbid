@@ -9,20 +9,18 @@ spring:
   # jpa:
   #   hibernate:
   #     ddl-auto: update
-  
+
   data:
     redis:
       url: ${SPRING_DATA_REDIS_URL}
-      ssl:
-        enabled: true
+
 
   jwt:
     secret: ${SPRING_JWT_SECRET}
 
 logging:
   level:
-    root: WARN
-    org.springframework.data.redis: WARN
+    root: INFO
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}

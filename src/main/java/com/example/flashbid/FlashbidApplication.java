@@ -10,6 +10,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class FlashbidApplication {
 
 	public static void main(String[] args) {
+		
+		System.out.println(System.getenv("SPRING_DATA_REDIS_URL"));
 		SpringApplication.run(FlashbidApplication.class, args);
 	}
 
