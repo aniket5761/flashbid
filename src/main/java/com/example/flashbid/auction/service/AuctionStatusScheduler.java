@@ -34,8 +34,17 @@ public class AuctionStatusScheduler {
 
     @Scheduled(fixedRate = 5000)
     public void updateAuctions() {
-        openScheduledAuctions();
-        closeExpiredAuctions();
+        try {
+            openScheduledAuctions();
+        } catch (Exception exception) {
+            log.error("Failed to open scheduled auctions from Redis state", exception);
+        }
+
+        try {
+            closeExpiredAuctions();
+        } catch (Exception exception) {
+            log.error("Failed to close expired auctions from Redis state", exception);
+        }
     }
 
     @Transactional

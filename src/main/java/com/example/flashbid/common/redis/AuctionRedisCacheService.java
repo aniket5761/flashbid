@@ -1,8 +1,10 @@
 package com.example.flashbid.common.redis;
 
 import com.example.flashbid.bid.dto.BidDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.flashbid.product.entity.ProductStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuctionRedisCacheService {
 
     private static final int RECENT_BIDS_LIMIT = 20;
@@ -20,36 +23,55 @@ public class AuctionRedisCacheService {
     private static final String SCHEDULED_AUCTIONS_KEY = "auction:scheduled";
     private static final String CLOSING_AUCTIONS_KEY = "auction:closing";
 
+    private final ObjectMapper objectMapper;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public AuctionSummaryCache getSummary(Long productId) {
-        Object value = redisTemplate.opsForValue().get(summaryKey(productId));
-        return value instanceof AuctionSummaryCache summary ? summary : null;
+        try {
+            Object value = redisTemplate.opsForValue().get(summaryKey(productId));
+            return convertValue(value, AuctionSummaryCache.class, summaryKey(productId));
+        } catch (Exception exception) {
+            log.warn("Redis read failed for summary key {}", summaryKey(productId), exception);
+            return null;
+        }
     }
 
     public void cacheSummary(AuctionSummaryCache summary) {
-        redisTemplate.opsForValue().set(summaryKey(summary.getProductId()), summary);
-        syncAuctionSets(summary);
+        try {
+            redisTemplate.opsForValue().set(summaryKey(summary.getProductId()), summary);
+            syncAuctionSets(summary);
+        } catch (Exception exception) {
+            log.warn("Redis write failed for summary key {}", summaryKey(summary.getProductId()), exception);
+        }
     }
 
     public List<BidDto> getRecentBids(Long productId) {
-        List<Object> values = redisTemplate.opsForList().range(recentBidsKey(productId), 0, RECENT_BIDS_LIMIT - 1);
-        if (values == null || values.isEmpty()) {
+        try {
+            List<Object> values = redisTemplate.opsForList().range(recentBidsKey(productId), 0, RECENT_BIDS_LIMIT - 1);
+            if (values == null || values.isEmpty()) {
+                return List.of();
+            }
+
+            return values.stream()
+                    .map(value -> convertValue(value, BidDto.class, recentBidsKey(productId)))
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        } catch (Exception exception) {
+            log.warn("Redis read failed for recent bids key {}", recentBidsKey(productId), exception);
             return List.of();
         }
-
-        return values.stream()
-                .filter(BidDto.class::isInstance)
-                .map(BidDto.class::cast)
-                .toList();
     }
 
     public void cacheRecentBids(Long productId, List<BidDto> bids) {
-        String key = recentBidsKey(productId);
-        redisTemplate.delete(key);
-        if (!bids.isEmpty()) {
-            redisTemplate.opsForList().rightPushAll(key, List.copyOf(bids).toArray());
-            redisTemplate.opsForList().trim(key, 0, RECENT_BIDS_LIMIT - 1);
+        try {
+            String key = recentBidsKey(productId);
+            redisTemplate.delete(key);
+            if (!bids.isEmpty()) {
+                redisTemplate.opsForList().rightPushAll(key, List.copyOf(bids).toArray());
+                redisTemplate.opsForList().trim(key, 0, RECENT_BIDS_LIMIT - 1);
+            }
+        } catch (Exception exception) {
+            log.warn("Redis write failed for recent bids key {}", recentBidsKey(productId), exception);
         }
     }
 
@@ -66,11 +88,21 @@ public class AuctionRedisCacheService {
     }
 
     public List<Long> getDueScheduledAuctionIds(LocalDateTime now) {
-        return getDueAuctionIds(SCHEDULED_AUCTIONS_KEY, now);
+        try {
+            return getDueAuctionIds(SCHEDULED_AUCTIONS_KEY, now);
+        } catch (Exception exception) {
+            log.warn("Redis read failed for scheduled auction index", exception);
+            return List.of();
+        }
     }
 
     public List<Long> getDueClosingAuctionIds(LocalDateTime now) {
-        return getDueAuctionIds(CLOSING_AUCTIONS_KEY, now);
+        try {
+            return getDueAuctionIds(CLOSING_AUCTIONS_KEY, now);
+        } catch (Exception exception) {
+            log.warn("Redis read failed for closing auction index", exception);
+            return List.of();
+        }
     }
 
     private void syncAuctionSets(AuctionSummaryCache summary) {
@@ -120,5 +152,22 @@ public class AuctionRedisCacheService {
 
     private String recentBidsKey(Long productId) {
         return "auction:" + productId + ":recent_bids";
+    }
+
+    private <T> T convertValue(Object value, Class<T> targetType, String key) {
+        if (value == null) {
+            return null;
+        }
+
+        if (targetType.isInstance(value)) {
+            return targetType.cast(value);
+        }
+
+        try {
+            return objectMapper.convertValue(value, targetType);
+        } catch (IllegalArgumentException exception) {
+            log.warn("Failed to deserialize Redis value for key {} into {}", key, targetType.getSimpleName(), exception);
+            return null;
+        }
     }
 }

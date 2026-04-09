@@ -6,24 +6,28 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
-
+  # jpa:
+  #   hibernate:
+  #     ddl-auto: update
+  
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST}
-      port: ${SPRING_DATA_REDIS_PORT}
-      password: ${SPRING_DATA_REDIS_PASSWORD}
+      url: ${SPRING_DATA_REDIS_URL}
       ssl:
-       enabled: true
+        enabled: true
 
   jwt:
     secret: ${SPRING_JWT_SECRET}
 
 logging:
   level:
-    root: INFO
+    root: WARN
+    org.springframework.data.redis: WARN
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
+  redis:
+    pubsub-enabled: ${APP_REDIS_PUBSUB_ENABLED:false}
 
 springdoc:
   api-docs:

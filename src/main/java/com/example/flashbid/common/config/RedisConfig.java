@@ -2,6 +2,8 @@ package com.example.flashbid.common.config;
 
 import com.example.flashbid.common.redis.AuctionRedisSubscriber;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +23,7 @@ import java.time.Duration;
 
 @Configuration
 @EnableCaching
+@Slf4j
 public class RedisConfig {
 
     public static final String AUCTION_UPDATES_CHANNEL = "auction.live.updates";
@@ -66,11 +69,13 @@ public class RedisConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.redis.pubsub-enabled", havingValue = "true")
     public MessageListenerAdapter auctionMessageListener(AuctionRedisSubscriber subscriber) {
         return new MessageListenerAdapter(subscriber, "handleMessage");
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.redis.pubsub-enabled", havingValue = "true")
     public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory connectionFactory,
             MessageListenerAdapter auctionMessageListener,
@@ -78,6 +83,8 @@ public class RedisConfig {
     ) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
+        container.setRecoveryInterval(5000L);
+        container.setErrorHandler(exception -> log.error("Redis listener error", exception));
         container.addMessageListener(auctionMessageListener, auctionUpdatesTopic);
         return container;
     }
