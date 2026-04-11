@@ -1,26 +1,35 @@
+
 services:
   db:
     image: postgres:15-alpine
-    container_name: flashbid-db
     environment:
       POSTGRES_DB: flashbid
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d flashbid"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: flashbid-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   app:
     build: .
-    container_name: flashbid-app
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "8080:8080"
     environment:
@@ -34,3 +43,7 @@ services:
       APP_TIMEZONE: Asia/Kolkata
       TZ: Asia/Kolkata
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Kolkata
+
+volumes:
+  postgres_data:
+  redis_data:
