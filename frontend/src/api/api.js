@@ -1,5 +1,7 @@
 import axios from "axios";
 
+const AUTH_LOGOUT_EVENT = "flashbid:logout";
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "",
   headers: {
@@ -14,6 +16,17 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export function toApiDateTime(value) {
   if (!value) {

@@ -2,6 +2,29 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const AuthContext = createContext(null);
+const AUTH_LOGOUT_EVENT = "flashbid:logout";
+
+function isTokenExpired(token) {
+  if (!token) {
+    return true;
+  }
+
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) {
+      return true;
+    }
+
+    const decodedPayload = JSON.parse(window.atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    if (typeof decodedPayload.exp !== "number") {
+      return true;
+    }
+
+    return decodedPayload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
 
 const initialUser = (() => {
   const raw = window.localStorage.getItem("flashbid_user");
@@ -48,6 +71,27 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
   }, []);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    if (isTokenExpired(token)) {
+      logout();
+    }
+  }, [logout, token]);
+
+  useEffect(() => {
+    function handleForcedLogout() {
+      logout();
+    }
+
+    window.addEventListener(AUTH_LOGOUT_EVENT, handleForcedLogout);
+    return () => {
+      window.removeEventListener(AUTH_LOGOUT_EVENT, handleForcedLogout);
+    };
+  }, [logout]);
 
   const value = useMemo(
     () => ({
