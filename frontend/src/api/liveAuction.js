@@ -5,7 +5,7 @@ function getWebSocketHttpUrl() {
   const configuredBaseUrl = import.meta.env.VITE_WS_BASE_URL || import.meta.env.VITE_API_BASE_URL;
   if (configuredBaseUrl) {
     const url = new URL(configuredBaseUrl, window.location.origin);
-    url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+    url.protocol = url.protocol === "https:" ? "https:" : "http:";
     url.pathname = "/ws";
     url.search = "";
     url.hash = "";
