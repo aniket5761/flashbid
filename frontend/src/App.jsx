@@ -1,16 +1,17 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./component/AppShell";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ProductsPage from "./pages/ProductsPage";
-import ProductCreatePage from "./pages/ProductCreatePage";
-import ProductDetailPage from "./pages/ProductDetailPage";
-import ProfilePage from "./pages/ProfilePage";
-import SellerStudioPage from "./pages/SellerStudioPage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import UsersPage from "./pages/UsersPage";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Products from "./pages/Products";
+import CreateProduct from "./pages/CreateProduct";
+import ProductDetail from "./pages/ProductDetail";
+import Profile from "./pages/Profile";
+import SellerStudio from "./pages/SellerStudio";
+import AdminDashboard from "./pages/AdminDashboard";
+import Users from "./pages/Users";
 import { useAuth } from "./state/AuthContext";
+
 
 function ProtectedRoute({ children, allowRoles }) {
   const { token, user } = useAuth();
@@ -27,16 +28,16 @@ export default function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/products" element={<Products/>} />
+        <Route path="/products/:productId" element={<ProductDetail />} />
         <Route
           path="/products/new"
           element={
             <ProtectedRoute allowRoles={["SELLER", "ADMIN"]}>
-              <ProductCreatePage />
+              <CreateProduct />
             </ProtectedRoute>
           }
         />
@@ -44,7 +45,7 @@ export default function App() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <ProfilePage />
+              <Profile />
             </ProtectedRoute>
           }
         />
@@ -52,7 +53,7 @@ export default function App() {
           path="/seller"
           element={
             <ProtectedRoute>
-              <SellerStudioPage />
+              <SellerStudio />
             </ProtectedRoute>
           }
         />
@@ -60,7 +61,7 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedRoute allowRoles={["ADMIN"]}>
-              <AdminDashboardPage />
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />
@@ -68,7 +69,7 @@ export default function App() {
           path="/users"
           element={
             <ProtectedRoute allowRoles={["ADMIN"]}>
-              <UsersPage />
+              <Users />
             </ProtectedRoute>
           }
         />

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api, { getErrorMessage } from "../api/api";
 import { ensureArray, formatCurrency, formatDateTime, normalizePage } from "../api/format";
 import { useAuth } from "../state/AuthContext";
+import ConfirmDialog from "../component/ConfirmDialog";
 import EmptyState from "../component/EmptyState";
 import Field from "../component/Field";
 import PageHeader from "../component/PageHeader";
@@ -15,7 +16,7 @@ const initialPage = {
   totalElements: 0
 };
 
-export default function ProfilePage() {
+export default function Profile() {
   const navigate = useNavigate();
   const { updateUser, logout } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -60,12 +62,7 @@ export default function ProfilePage() {
     loadProfile();
   }, [updateUser]);
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (!profile) {
-      return;
-    }
-
+  async function submitProfileUpdate() {
     setSaving(true);
     setError("");
     setSuccess("");
@@ -74,6 +71,7 @@ export default function ProfilePage() {
       setProfile(data);
       updateUser(data);
       setSuccess("Profile updated successfully.");
+      setConfirmAction(null);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -81,8 +79,25 @@ export default function ProfilePage() {
     }
   }
 
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!profile) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setConfirmAction({
+      title: "Save profile changes?",
+      description: "Your account details will be updated with the information currently shown in the form.",
+      confirmLabel: "Yes, update profile",
+      tone: "default",
+      onConfirm: submitProfileUpdate
+    });
+  }
+
   async function handleDelete() {
-    if (!profile || !window.confirm("Delete this account permanently?")) {
+    if (!profile) {
       return;
     }
 
@@ -105,6 +120,17 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-8">
+      <ConfirmDialog
+        open={Boolean(confirmAction)}
+        title={confirmAction?.title}
+        description={confirmAction?.description}
+        confirmLabel={confirmAction?.confirmLabel}
+        tone={confirmAction?.tone}
+        busy={saving}
+        onConfirm={confirmAction?.onConfirm}
+        onCancel={() => !saving && setConfirmAction(null)}
+      />
+
       <PageHeader
         eyebrow="My profile"
         title={profile.firstName ? `${profile.firstName} ${profile.lastName}` : profile.username}
@@ -128,8 +154,21 @@ export default function ProfilePage() {
           <div className="md:col-span-2">
             <Field label="Email" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
           </div>
+          <div className="md:col-span-2 rounded-3xl border border-ink/10 bg-sand/55 px-4 py-4 text-sm leading-7 text-ink/65">
+            Changes stay in the form until you confirm them. Selecting <span className="font-semibold text-ink">Save profile</span> opens a review step before anything is updated.
+          </div>
           <div className="md:col-span-2 flex flex-wrap justify-between gap-3">
-            <button type="button" onClick={handleDelete} className="button-secondary border-rose-200 text-rose-700 hover:border-rose-300">
+            <button
+              type="button"
+              onClick={() => setConfirmAction({
+                title: "Delete this account?",
+                description: "This action is permanent. Your account will be removed and you will be signed out immediately.",
+                confirmLabel: "Delete account",
+                tone: "danger",
+                onConfirm: handleDelete
+              })}
+              className="button-secondary border-rose-200 text-rose-700 hover:border-rose-300"
+            >
               Delete profile
             </button>
             <button type="submit" className="button-primary min-w-40" disabled={saving}>

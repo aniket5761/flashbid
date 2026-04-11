@@ -13,7 +13,7 @@ const initialForm = {
   description: ""
 };
 
-export default function ProductCreatePage() {
+export default function CreateProduct() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);

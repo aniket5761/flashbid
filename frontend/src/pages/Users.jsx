@@ -15,7 +15,7 @@ const initialPage = {
   totalElements: 0
 };
 
-export default function UsersPage() {
+export default function Users() {
   const [users, setUsers] = useState(initialPage);
   const [filters, setFilters] = useState({
     page: 0,

@@ -16,7 +16,7 @@ const initialPage = {
   totalElements: 0
 };
 
-export default function ProductDetailPage() {
+export default function ProductDetail() {
   const { productId } = useParams();
   const { isAuthenticated, user } = useAuth();
   const [product, setProduct] = useState(null);

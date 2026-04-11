@@ -10,10 +10,11 @@ const initialForm = {
   lastName: "",
   username: "",
   email: "",
-  password: ""
+  password: "",
+  confirmPassword: ""
 };
 
-export default function RegisterPage() {
+export default function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [form, setForm] = useState(initialForm);
@@ -26,11 +27,18 @@ export default function RegisterPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setLoading(true);
     setError("");
 
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      const { data } = await api.post("/api/auth/register", form);
+      const { confirmPassword, ...registerPayload } = form;
+      const { data } = await api.post("/api/auth/register", registerPayload);
       login(data);
       navigate("/");
     } catch (submitError) {
@@ -76,6 +84,13 @@ export default function RegisterPage() {
             value={form.password}
             onChange={(event) => update("password", event.target.value)}
             placeholder="Minimum 8 characters"
+          />
+          <Field
+            label="Confirm password"
+            type="password"
+            value={form.confirmPassword}
+            onChange={(event) => update("confirmPassword", event.target.value)}
+            placeholder="Re-enter your password"
           />
 
           {error ? <p className="md:col-span-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</p> : null}

@@ -18,7 +18,7 @@ const initialPage = {
   totalElements: 0
 };
 
-export default function ProductsPage() {
+export default function Products() {
   const { user } = useAuth();
   const [products, setProducts] = useState(initialPage);
   const [filters, setFilters] = useState({

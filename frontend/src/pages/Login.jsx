@@ -5,7 +5,7 @@ import { useAuth } from "../state/AuthContext";
 import Field from "../component/Field";
 import PageHeader from "../component/PageHeader";
 
-export default function LoginPage() {
+export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [form, setForm] = useState({ username: "", password: "" });
@@ -38,12 +38,12 @@ export default function LoginPage() {
 
       <div className="panel overflow-hidden lg:grid lg:grid-cols-[0.95fr_1.05fr]">
         <div className="bg-ink px-8 py-10 text-white">
-          <div className="eyebrow !border-white/15 !bg-white/10 !text-white/70">Secure access</div>
+          <div className="eyebrow border-white/15! bg-white/10! text-white/70!">Secure access</div>
           <h2 className="mt-5 font-display text-4xl font-bold">Sign in and keep moving.</h2>
           <p className="mt-4 text-sm leading-7 text-white/72">
             Your session is stored locally and attached automatically to bidding, profile, seller, and admin actions.
           </p>
-          <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 px-5 py-5 text-sm text-white/70">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 px-5 py-5 text-sm text-white/70">
             Need a fresh account?{" "}
             <Link to="/register" className="font-semibold text-white underline underline-offset-4">
               Create one here

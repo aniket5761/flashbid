@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import api, { getErrorMessage } from "../api/api";
 import { formatCurrency, normalizePage } from "../api/format";
+import ConfirmDialog from "../component/ConfirmDialog";
 import EmptyState from "../component/EmptyState";
 import PageHeader from "../component/PageHeader";
 import StatCard from "../component/StatCard";
 import StatusBadge from "../component/StatusBadge";
 
-export default function AdminDashboardPage() {
+export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   async function loadDashboard() {
     setLoading(true);
@@ -45,29 +48,41 @@ export default function AdminDashboardPage() {
   }, []);
 
   async function handleSellerApproval(userId, value) {
+    setActionBusy(true);
     try {
       await api.patch(`/api/user/${userId}/seller-approval`, { value });
       await loadDashboard();
+      setConfirmAction(null);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
+    } finally {
+      setActionBusy(false);
     }
   }
 
   async function handleBan(userId, value) {
+    setActionBusy(true);
     try {
       await api.patch(`/api/user/${userId}/ban`, { value });
       await loadDashboard();
+      setConfirmAction(null);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
+    } finally {
+      setActionBusy(false);
     }
   }
 
   async function handleForceClose(productId) {
+    setActionBusy(true);
     try {
       await api.post(`/api/auctions/${productId}/close`);
       await loadDashboard();
+      setConfirmAction(null);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
+    } finally {
+      setActionBusy(false);
     }
   }
 
@@ -77,6 +92,17 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
+      <ConfirmDialog
+        open={Boolean(confirmAction)}
+        title={confirmAction?.title}
+        description={confirmAction?.description}
+        confirmLabel={confirmAction?.confirmLabel}
+        tone={confirmAction?.tone}
+        busy={actionBusy}
+        onConfirm={confirmAction?.onConfirm}
+        onCancel={() => !actionBusy && setConfirmAction(null)}
+      />
+
       <PageHeader
         eyebrow="Admin dashboard"
         title="Moderate users and auctions"
@@ -102,16 +128,37 @@ export default function AdminDashboardPage() {
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="panel px-6 py-6">
               <h2 className="font-display text-3xl font-bold text-ink">Seller approvals</h2>
+              <p className="mt-2 text-sm leading-7 text-ink/60">Every approval and rejection now goes through a confirmation step before the account is changed.</p>
               <div className="mt-5 space-y-3">
                 {dashboard.pendingUsers.content.length ? dashboard.pendingUsers.content.map((pendingUser) => (
                   <div key={pendingUser.id} className="rounded-2xl border border-ink/10 bg-white px-4 py-4">
                     <p className="font-semibold text-ink">{pendingUser.username}</p>
                     <p className="mt-1 text-sm text-ink/55">{pendingUser.email}</p>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <button type="button" className="button-primary" onClick={() => handleSellerApproval(pendingUser.id, true)}>
+                      <button
+                        type="button"
+                        className="button-primary"
+                        onClick={() => setConfirmAction({
+                          title: `Approve ${pendingUser.username} as seller?`,
+                          description: "This will grant seller access and remove the account from the pending approval queue.",
+                          confirmLabel: "Approve seller",
+                          tone: "default",
+                          onConfirm: () => handleSellerApproval(pendingUser.id, true)
+                        })}
+                      >
                         Approve seller
                       </button>
-                      <button type="button" className="button-secondary" onClick={() => handleSellerApproval(pendingUser.id, false)}>
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() => setConfirmAction({
+                          title: `Reject ${pendingUser.username}'s request?`,
+                          description: "This will clear the current seller request and keep the account as a standard user.",
+                          confirmLabel: "Reject request",
+                          tone: "danger",
+                          onConfirm: () => handleSellerApproval(pendingUser.id, false)
+                        })}
+                      >
                         Reject request
                       </button>
                     </div>
@@ -133,6 +180,7 @@ export default function AdminDashboardPage() {
           <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="panel px-6 py-6">
               <h2 className="font-display text-3xl font-bold text-ink">User moderation</h2>
+              <p className="mt-2 text-sm leading-7 text-ink/60">Moderation stays one click away, but account status only changes after a clear confirmation.</p>
               <div className="mt-5 space-y-3">
                 {dashboard.users.content.length ? dashboard.users.content.map((account) => (
                   <div key={account.id} className="rounded-2xl border border-ink/10 bg-white px-4 py-4">
@@ -149,7 +197,19 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <button type="button" className="button-secondary" onClick={() => handleBan(account.id, !account.banned)}>
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() => setConfirmAction({
+                          title: account.banned ? `Restore ${account.username}'s account?` : `Ban ${account.username}'s account?`,
+                          description: account.banned
+                            ? "This will allow the user to access the platform again."
+                            : "This will block the user from normal platform access until the ban is removed.",
+                          confirmLabel: account.banned ? "Unban user" : "Ban user",
+                          tone: account.banned ? "default" : "danger",
+                          onConfirm: () => handleBan(account.id, !account.banned)
+                        })}
+                      >
                         {account.banned ? "Unban user" : "Ban user"}
                       </button>
                     </div>
@@ -168,7 +228,17 @@ export default function AdminDashboardPage() {
                         <p className="font-semibold text-ink">{auction.name}</p>
                         <p className="mt-1 text-sm text-ink/55">Current bid: {formatCurrency(auction.currentBid)}</p>
                       </div>
-                      <button type="button" className="button-primary" onClick={() => handleForceClose(auction.id)}>
+                      <button
+                        type="button"
+                        className="button-primary"
+                        onClick={() => setConfirmAction({
+                          title: `Force close ${auction.name}?`,
+                          description: "This ends the auction immediately and should only be used when you are sure the live listing needs manual intervention.",
+                          confirmLabel: "Force close",
+                          tone: "danger",
+                          onConfirm: () => handleForceClose(auction.id)
+                        })}
+                      >
                         Force close
                       </button>
                     </div>
@@ -185,7 +255,7 @@ export default function AdminDashboardPage() {
 
 function CountCard({ label, value }) {
   return (
-    <div className="rounded-[24px] border border-ink/10 bg-white px-4 py-4">
+    <div className="rounded-3xl border border-ink/10 bg-white px-4 py-4">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/40">{label}</p>
       <p className="mt-3 font-display text-3xl font-bold text-ink">{value}</p>
     </div>

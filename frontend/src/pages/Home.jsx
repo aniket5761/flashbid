@@ -9,7 +9,7 @@ import StatCard from "../component/StatCard";
 import StatusBadge from "../component/StatusBadge";
 import { ensureArray, formatCurrency, normalizePage } from "../api/format";
 
-export default function HomePage() {
+export default function Home() {
   const { isAuthenticated, user } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(isAuthenticated);

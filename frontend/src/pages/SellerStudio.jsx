@@ -8,7 +8,7 @@ import PageHeader from "../component/PageHeader";
 import ProductCard from "../component/ProductCard";
 import StatusBadge from "../component/StatusBadge";
 
-export default function SellerStudioPage() {
+export default function SellerStudio() {
   const { user, updateUser } = useAuth();
   const [profile, setProfile] = useState(user);
   const [products, setProducts] = useState([]);
