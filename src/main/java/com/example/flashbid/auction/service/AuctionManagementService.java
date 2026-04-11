@@ -32,6 +32,13 @@ public class AuctionManagementService {
 
     @Transactional
     public ProductStatus syncAuctionStatus(Auction auction) {
+        if (auction.getStatus() == ProductStatus.CLOSED
+                || auction.getProduct().getProductStatus() == ProductStatus.CLOSED) {
+            auction.setStatus(ProductStatus.CLOSED);
+            auction.getProduct().setProductStatus(ProductStatus.CLOSED);
+            return ProductStatus.CLOSED;
+        }
+
         ProductStatus effectiveStatus = resolveStatus(auction, LocalDateTime.now());
         Product product = auction.getProduct();
 
@@ -63,8 +70,11 @@ public class AuctionManagementService {
         product.setProductStatus(ProductStatus.CLOSED);
 
         try {
-            auctionWinnerService.createWinner(product);
-            log.info("Winner determined and auction closed for product ID: {}", product.getId());
+            if (auctionWinnerService.createWinner(product) != null) {
+                log.info("Winner determined and auction closed for product ID: {}", product.getId());
+            } else {
+                log.info("Auction closed without a winner for product ID: {}", product.getId());
+            }
         } catch (Exception exception) {
             log.warn("No winner found for product ID: {} - {}", product.getId(), exception.getMessage());
         }
@@ -77,6 +87,11 @@ public class AuctionManagementService {
     }
 
     private ProductStatus resolveStatus(Auction auction, LocalDateTime now) {
+        if (auction.getStatus() == ProductStatus.CLOSED
+                || auction.getProduct().getProductStatus() == ProductStatus.CLOSED) {
+            return ProductStatus.CLOSED;
+        }
+
         if (now.isBefore(auction.getStartTime())) {
             return ProductStatus.SCHEDULED;
         }

@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -38,8 +37,7 @@ public class AuctionWinnerService {
         Optional<Bid> winningBidOpt = bidRepo.findTopByProductOrderByAmountDesc(product);
 
         if (winningBidOpt.isEmpty()) {
-            // This is handled by the scheduler (it won't create a winner, but will close the auction)
-            throw new BidException("No bids found for product ID: " + product.getId());
+            return null;
         }
 
         Bid winningBid = winningBidOpt.get();
@@ -54,20 +52,15 @@ public class AuctionWinnerService {
 
     @Transactional
     public AuctionWinnerDto getAuctionWinner(Long productId) {
-        Auction auction = auctionRepo.findByProductIdForUpdate(productId)
+        Auction auction = auctionRepo.findByProductId(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Auction not found for product ID: " + productId));
-
-        if (auction.getStatus() != ProductStatus.CLOSED && !LocalDateTime.now().isBefore(auction.getEndTime())) {
-            auction.setStatus(ProductStatus.CLOSED);
-            auction.getProduct().setProductStatus(ProductStatus.CLOSED);
-        }
 
         if (auction.getStatus() != ProductStatus.CLOSED) {
             throw new BidException("Auction is still ongoing for product ID: " + productId);
         }
 
         AuctionWinner winner = auctionWinnerRepo.findByProductId(productId)
-                .orElseGet(() -> createWinner(auction.getProduct()));
+                .orElseThrow(() -> new ResourceNotFoundException("Winner not found for product ID: " + productId));
 
         return mapToDto(winner);
     }

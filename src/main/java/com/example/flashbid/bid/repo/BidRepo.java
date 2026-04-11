@@ -25,6 +25,7 @@ public interface BidRepo extends JpaRepository<Bid, Long> {
     Page<Bid> findByProductIdOrderByAmountDesc(Long productId, Pageable pageable);
     Page<Bid> findByUserIdOrderByTimestampDesc(Long userId, Pageable pageable);
     long countByProductId(Long productId);
+    void deleteByProductId(Long productId);
 
     @Query("""
             select b.product.id as productId,

@@ -50,6 +50,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SELLER','ADMIN')")
     public ResponseEntity<ProductDto> editProduct(@PathVariable("id") Long id,
                                            @Valid @RequestBody EditProductDto editProductDto) {
         return ResponseEntity.ok(productService.editProduct(id, editProductDto));

@@ -10,9 +10,10 @@ spring:
   #   hibernate:
   #     ddl-auto: update
 
-  data:
-    redis:
-      url: ${SPRING_DATA_REDIS_URL}
+  # directly comes from env variables helps to avoid conflict in local development
+  # data:
+  #   redis:
+  #     url: ${SPRING_DATA_REDIS_URL}
 
 
   jwt:

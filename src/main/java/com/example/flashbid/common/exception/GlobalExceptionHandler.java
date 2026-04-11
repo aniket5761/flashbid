@@ -35,6 +35,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorDetails> handleDuplicateResourceException(DuplicateResourceException exception, WebRequest webRequest) {
+        ErrorDetails errorDetails = new ErrorDetails(
+                LocalDateTime.now(),
+                exception.getMessage(),
+                webRequest.getDescription(false),
+                "DUPLICATE_RESOURCE");
+        return new ResponseEntity<>(errorDetails, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(UserAccessDeniedException.class)
     public ResponseEntity<ErrorDetails> handleUserAccessDeniedException(UserAccessDeniedException exception, WebRequest webRequest) {
         ErrorDetails errorDetails = new ErrorDetails(
@@ -78,6 +88,16 @@ public class GlobalExceptionHandler {
                 "Validation failed!",
                 combinedErrors,
                 "VALIDATION_ERROR");
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorDetails> handleIllegalArgumentException(IllegalArgumentException exception, WebRequest webRequest) {
+        ErrorDetails errorDetails = new ErrorDetails(
+                LocalDateTime.now(),
+                exception.getMessage(),
+                webRequest.getDescription(false),
+                "BAD_REQUEST");
         return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
     }
 

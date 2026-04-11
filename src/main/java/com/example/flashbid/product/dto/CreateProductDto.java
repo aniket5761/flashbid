@@ -30,6 +30,7 @@ public class CreateProductDto {
     @Positive(message = "Minimum increment must be greater than 0!")
     private Long minimumIncrement;
 
+    @NotNull(message = "Starting time cannot be null!")
     @Future(message = "Starting time must be in future!")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startTime;

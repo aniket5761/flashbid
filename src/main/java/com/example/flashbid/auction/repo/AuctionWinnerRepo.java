@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface AuctionWinnerRepo extends JpaRepository<AuctionWinner, Long> {
     Optional<AuctionWinner> findByProductId(Long productId);
+
+    void deleteByProductId(Long productId);
 }

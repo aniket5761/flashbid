@@ -1,6 +1,7 @@
 package com.example.flashbid.user.service;
 
 import com.example.flashbid.common.exception.UserAccessDeniedException;
+import com.example.flashbid.common.exception.DuplicateResourceException;
 import com.example.flashbid.common.util.EntityFetcher;
 import jakarta.persistence.criteria.Predicate;
 import com.example.flashbid.user.dto.EditUserDto;
@@ -19,10 +20,12 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("username", "email", "registrationDate", "role");
 
     private final UserRepo userRepo;
     private final EntityFetcher entityFetcher;
@@ -42,11 +45,13 @@ public class UserService {
 
     public Page<UserDto> getAllUsers(Optional<Integer> page, Optional<String> sortBy, Optional<String> username,
                                      Optional<Role> role, Optional<Boolean> sellerRequested, Optional<Boolean> banned) {
+        String sortField = sortBy.orElse("username");
+        validateSortField(sortField);
         PageRequest pageRequest = PageRequest.of(
                 page.orElse(0),
                 12,
                 Sort.Direction.ASC,
-                sortBy.orElse("username")
+                sortField
         );
 
         Specification<User> specification = (root, query, criteriaBuilder) -> {
@@ -72,7 +77,7 @@ public class UserService {
         }
 
         if (editUserDto.getEmail() != null && !editUserDto.getEmail().equalsIgnoreCase(userToEdit.getEmail()) && userRepo.existsByEmail(editUserDto.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new DuplicateResourceException("Email already exists");
         }
 
         if (currentUser.getRole().equals(Role.ADMIN) && editUserDto.getRole() != null) {
@@ -150,6 +155,12 @@ public class UserService {
                 .banned(user.isBanned())
                 .deleted(user.isDeleted())
                 .build();
+    }
+
+    private void validateSortField(String sortField) {
+        if (!ALLOWED_SORT_FIELDS.contains(sortField)) {
+            throw new IllegalArgumentException("Invalid sortBy value: " + sortField);
+        }
     }
 
 }

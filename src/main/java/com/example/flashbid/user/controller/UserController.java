@@ -22,11 +22,13 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('USER','SELLER','ADMIN')")
     public ResponseEntity<UserDto> getCurrentUser() {
         return ResponseEntity.ok(userService.getCurrentUserProfile());
     }
 
     @PutMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('USER','SELLER','ADMIN')")
     public ResponseEntity<UserDto> editUser(@PathVariable("userId") Long userId,
                                            @Valid @RequestBody EditUserDto editUserDto) {
         UserDto userDto = userService.editUser(userId, editUserDto);
@@ -34,6 +36,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER','SELLER','ADMIN')")
     public ResponseEntity<UserDto> getUser(@PathVariable Long id) {
         UserDto userDto = userService.getUser(id);
         return ResponseEntity.ok(userDto);
@@ -58,6 +61,7 @@ public class UserController {
     }
 
     @PostMapping("/me/seller-request")
+    @PreAuthorize("hasAnyRole('USER','SELLER','ADMIN')")
     public ResponseEntity<UserDto> requestSellerAccess() {
         return ResponseEntity.ok(userService.requestSellerAccess());
     }

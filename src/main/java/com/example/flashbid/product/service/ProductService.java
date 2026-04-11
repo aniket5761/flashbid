@@ -2,6 +2,7 @@ package com.example.flashbid.product.service;
 
 import com.example.flashbid.auction.entity.Auction;
 import com.example.flashbid.auction.repo.AuctionRepo;
+import com.example.flashbid.auction.repo.AuctionWinnerRepo;
 import com.example.flashbid.auction.service.AuctionManagementService;
 import com.example.flashbid.bid.entity.Bid;
 import com.example.flashbid.bid.repo.BidRepo;
@@ -30,14 +31,17 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "name", "startingPrice", "startTime", "endTime", "productStatus");
 
     private final ProductRepo productRepo;
     private final AuctionRepo auctionRepo;
+    private final AuctionWinnerRepo auctionWinnerRepo;
     private final AuctionManagementService auctionManagementService;
     private final BidRepo bidRepo;
     private final AuctionRedisCacheService auctionRedisCacheService;
@@ -45,6 +49,7 @@ public class ProductService {
     private final EntityFetcher entityFetcher;
     private final UserRepo userRepo;
 
+    @Transactional
     public ProductDto addProduct(CreateProductDto createProductDto) {
         User currentUser = entityFetcher.getCurrentUser();
         if (!canManageAuctions(currentUser)) {
@@ -86,13 +91,15 @@ public class ProductService {
     public Page<ProductDto> getAllProducts(Optional<Integer> page, Optional<String> sortBy, 
                                           Optional<String> sortDir,
                                           Optional<String> name, Optional<ProductStatus> productStatus) {
+        String sortField = sortBy.orElse("createdAt");
+        validateSortField(sortField);
         Sort.Direction direction = sortDir.orElse("desc").equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
         
         PageRequest pageRequest = PageRequest.of(
                 page.orElse(0),
                 12,
                 direction,
-                sortBy.orElse("createdAt")
+                sortField
         );
 
         Page<Product> products;
@@ -145,6 +152,7 @@ public class ProductService {
         return mapToDto(productRepo.save(product), null, null, null);
     }
 
+    @Transactional
     public String deleteProduct(Long productId) {
         User currentUser = entityFetcher.getCurrentUser();
         Product product = productRepo.findById(productId)
@@ -154,9 +162,17 @@ public class ProductService {
             throw new UserAccessDeniedException("You do not have permission to delete this product.");
         }
 
+        auctionWinnerRepo.deleteByProductId(productId);
+        bidRepo.deleteByProductId(productId);
         auctionRepo.deleteByProductId(productId);
         productRepo.delete(product);
         return "Product deleted successfully.";
+    }
+
+    private void validateSortField(String sortField) {
+        if (!ALLOWED_SORT_FIELDS.contains(sortField)) {
+            throw new IllegalArgumentException("Invalid sortBy value: " + sortField);
+        }
     }
 
     private boolean canManageAuctions(User user) {

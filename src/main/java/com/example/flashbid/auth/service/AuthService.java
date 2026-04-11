@@ -3,11 +3,13 @@ package com.example.flashbid.auth.service;
 import com.example.flashbid.auth.dto.AuthRequest;
 import com.example.flashbid.auth.dto.AuthResponse;
 import com.example.flashbid.auth.dto.RegisterRequest;
+import com.example.flashbid.common.exception.DuplicateResourceException;
 import com.example.flashbid.user.dto.UserDto;
 import com.example.flashbid.user.entity.Role;
 import com.example.flashbid.user.entity.User;
 import com.example.flashbid.user.repo.UserRepo;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,10 +28,10 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepo.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already exists");
+            throw new DuplicateResourceException("Username already exists");
         }
         if (userRepo.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new DuplicateResourceException("Email already exists");
         }
 
         User user = new User();
@@ -44,13 +46,17 @@ public class AuthService {
         user.setDeleted(false);
         user.setRegistrationDate(LocalDateTime.now());
 
-        User savedUser = userRepo.save(user);
-        String token = jwtService.generateToken(savedUser.getUsername());
+        try {
+            User savedUser = userRepo.saveAndFlush(user);
+            String token = jwtService.generateToken(savedUser.getUsername());
 
-        return AuthResponse.builder()
-                .token(token)
-                .user(mapToDto(savedUser))
-                .build();
+            return AuthResponse.builder()
+                    .token(token)
+                    .user(mapToDto(savedUser))
+                    .build();
+        } catch (DataIntegrityViolationException exception) {
+            throw new DuplicateResourceException("Username or email already exists");
+        }
     }
 
     public AuthResponse login(AuthRequest request) {
