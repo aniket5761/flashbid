@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api, { getErrorMessage } from "../api/api";
 import { ensureArray, formatCurrency, formatDateTime, normalizePage } from "../api/format";
@@ -28,39 +28,115 @@ export default function ProductDetail() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [liveStatus, setLiveStatus] = useState("connecting");
+  const [productLoaded, setProductLoaded] = useState(false);
+  const [bidsLoaded, setBidsLoaded] = useState(false);
+  const productRequestKeyRef = useRef("");
+  const bidsRequestKeyRef = useRef("");
 
-  const loadAuction = useCallback(async (options = {}) => {
-    const { preserveMessages = false } = options;
-    setLoading(true);
-    if (!preserveMessages) {
-      setError("");
-      setSuccess("");
+  useEffect(() => {
+    if (!productId) {
+      return undefined;
     }
-    try {
-      const productPromise = api.get(`/api/products/${productId}`);
-      const bidsPromise = isAuthenticated
-        ? api.get(`/api/bids/product/${productId}`, { params: { page: 0 } })
-        : Promise.resolve({ data: initialPage });
 
-      const [productRes, bidsRes] = await Promise.all([productPromise, bidsPromise]);
-      const winnerRes = productRes.data?.productStatus === "CLOSED"
-        ? await api.get(`/api/auctions/winner/${productId}`).catch(() => ({ data: null }))
-        : { data: null };
+    const requestKey = `product:${productId}`;
+    if (productRequestKeyRef.current === requestKey) {
+      return undefined;
+    }
 
-      setProduct(productRes.data);
-      setBids(normalizePage(bidsRes.data));
-      setWinner(winnerRes.data);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
+    productRequestKeyRef.current = requestKey;
+    setProductLoaded(false);
+    setError("");
+    setSuccess("");
+
+    let cancelled = false;
+
+    async function fetchProduct() {
+      try {
+        const productRes = await api.get(`/api/products/${productId}`);
+        const winnerRes = productRes.data?.productStatus === "CLOSED"
+          ? await api.get(`/api/auctions/winner/${productId}`).catch(() => ({ data: null }))
+          : { data: null };
+
+        if (cancelled) {
+          return;
+        }
+
+        setProduct(productRes.data);
+        setWinner(winnerRes.data);
+      } catch (requestError) {
+        if (cancelled) {
+          return;
+        }
+
+        setError(getErrorMessage(requestError));
+        setProduct(null);
+      } finally {
+        if (!cancelled) {
+          setProductLoaded(true);
+        }
+      }
+    }
+
+    fetchProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  useEffect(() => {
+    if (!productId) {
+      return undefined;
+    }
+
+    const requestKey = `bids:${productId}:${isAuthenticated}`;
+    if (bidsRequestKeyRef.current === requestKey) {
+      return undefined;
+    }
+
+    bidsRequestKeyRef.current = requestKey;
+    setBidsLoaded(false);
+
+    if (!isAuthenticated) {
       setBids(initialPage);
-    } finally {
-      setLoading(false);
+      setBidsLoaded(true);
+      return undefined;
     }
+
+    let cancelled = false;
+
+    async function fetchBids() {
+      try {
+        const bidsRes = await api.get(`/api/bids/product/${productId}`, { params: { page: 0 } });
+        if (cancelled) {
+          return;
+        }
+
+        setBids(normalizePage(bidsRes.data));
+      } catch (requestError) {
+        if (cancelled) {
+          return;
+        }
+
+        setError(getErrorMessage(requestError));
+        setBids(initialPage);
+      } finally {
+        if (!cancelled) {
+          setBidsLoaded(true);
+        }
+      }
+    }
+
+    fetchBids();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, productId]);
 
   useEffect(() => {
-    loadAuction();
-  }, [loadAuction]);
+    setLoading(isAuthenticated ? !(productLoaded && bidsLoaded) : !productLoaded);
+  }, [bidsLoaded, isAuthenticated, productLoaded]);
 
   useEffect(() => {
     if (!productId) {
@@ -70,7 +146,6 @@ export default function ProductDetail() {
     const client = createAuctionClient(productId, {
       onConnect: () => {
         setLiveStatus("connected");
-        loadAuction({ preserveMessages: true });
       },
       onDisconnect: () => {
         setLiveStatus("disconnected");
@@ -111,7 +186,7 @@ export default function ProductDetail() {
       setLiveStatus("disconnected");
       client.deactivate();
     };
-  }, [loadAuction, productId]);
+  }, [productId]);
 
   async function handleBidSubmit(event) {
     event.preventDefault();
