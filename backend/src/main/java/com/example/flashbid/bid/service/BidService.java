@@ -50,7 +50,8 @@ public class BidService {
 
         auctionManagementService.syncAuctionStatus(auction);
 
-        Long currentHighest = bidRepo.findTopByProductOrderByAmountDesc(product)
+        Optional<Bid> highestBid = bidRepo.findTopByProductOrderByAmountDesc(product);
+        Long currentHighest = highestBid
                 .map(Bid::getAmount)
                 .orElse(product.getStartingPrice());
 
@@ -60,6 +61,14 @@ public class BidService {
 
         if (product.getUser().getId().equals(user.getId())) {
             throw new BidAccessDeniedException("You cannot bid on your own product.");
+        }
+
+        if (highestBid
+                .map(Bid::getUser)
+                .map(User::getId)
+                .filter(userId -> userId.equals(user.getId()))
+                .isPresent()) {
+            throw new BidException("You already have the highest bid for this auction.");
         }
 
         if (LocalDateTime.now().isAfter(auction.getEndTime())) {
