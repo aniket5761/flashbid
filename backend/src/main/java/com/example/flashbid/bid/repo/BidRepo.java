@@ -21,6 +21,17 @@ public interface BidRepo extends JpaRepository<Bid, Long> {
     }
 
     Optional<Bid> findTopByProductOrderByAmountDesc(Product product);
+    
+    @Query("""
+            SELECT b 
+            FROM Bid b 
+            JOIN FETCH b.user 
+            JOIN FETCH b.product 
+            WHERE b.product = :product
+            ORDER BY b.amount DESC
+            """)
+    Optional<Bid> findHighestBidWithDetailsByProduct(@Param("product") Product product);
+    
     Page<Bid> findByProductIdOrderByTimestampDesc(Long productId, Pageable pageable);
     Page<Bid> findByProductIdOrderByAmountDesc(Long productId, Pageable pageable);
     Page<Bid> findByUserIdOrderByTimestampDesc(Long userId, Pageable pageable);

@@ -1,4 +1,4 @@
-package com.example.flashbid.bid.service;
+package com.flashbid.bid.service;
 
 import com.example.flashbid.auction.entity.Auction;
 import com.example.flashbid.auction.repo.AuctionRepo;
@@ -15,6 +15,7 @@ import com.example.flashbid.common.redis.AuctionRedisCacheService;
 import com.example.flashbid.common.redis.AuctionSummaryCache;
 import com.example.flashbid.common.util.EntityFetcher;
 import com.example.flashbid.product.entity.Product;
+import com.example.flashbid.product.entity.ProductStatus;
 import com.example.flashbid.user.entity.User;
 import com.example.flashbid.user.entity.Role;
 import jakarta.transaction.Transactional;
@@ -43,19 +44,33 @@ public class BidService {
 
     @Transactional
     public BidDto placeBid(CreateBidDto createBidDto) {
-        Auction auction = auctionRepo.findByProductIdForUpdate(createBidDto.getProductId())
+        // Use Redis cache instead of locking query
+        AuctionSummaryCache cachedSummary = auctionRedisCacheService.getSummary(createBidDto.getProductId());
+        
+        Auction auction = auctionRepo.findByProductId(createBidDto.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Auction not found for product id: " + createBidDto.getProductId()));
         Product product = auction.getProduct();
         User user = entityFetcher.getCurrentUser();
 
-        auctionManagementService.syncAuctionStatus(auction);
+        // Check auction status from cache 
+        if (cachedSummary == null || "SCHEDULED".equals(cachedSummary.getStatus().toString())) {
+            auctionManagementService.syncAuctionStatus(auction);
+        }
 
-        Optional<Bid> highestBid = bidRepo.findTopByProductOrderByAmountDesc(product);
-        Long currentHighest = highestBid
-                .map(Bid::getAmount)
-                .orElse(product.getStartingPrice());
+        // Get current highest bid 
+        Long currentHighest;
+        Long topBidderId = null;
+        if (cachedSummary != null && cachedSummary.getCurrentBid() != null) {
+            currentHighest = cachedSummary.getCurrentBid();
+            topBidderId = cachedSummary.getTopBidderId();
+        } else {
+            // Fallback to DB
+            Optional<Bid> highestBid = bidRepo.findHighestBidWithDetailsByProduct(product);
+            currentHighest = highestBid.map(Bid::getAmount).orElse(product.getStartingPrice());
+            topBidderId = highestBid.map(b -> b.getUser().getId()).orElse(null);
+        }
 
-        if (auction.getStatus() != com.example.flashbid.product.entity.ProductStatus.OPEN) {
+        if (auction.getStatus() != ProductStatus.OPEN) {
             throw new BidException("Bidding is not allowed. Auction is not open.");
         }
 
@@ -63,11 +78,8 @@ public class BidService {
             throw new BidAccessDeniedException("You cannot bid on your own product.");
         }
 
-        if (highestBid
-                .map(Bid::getUser)
-                .map(User::getId)
-                .filter(userId -> userId.equals(user.getId()))
-                .isPresent()) {
+
+        if (topBidderId != null && topBidderId.equals(user.getId())) {
             throw new BidException("You already have the highest bid for this auction.");
         }
 
@@ -88,6 +100,7 @@ public class BidService {
 
         Bid savedBid = bidRepo.save(bid);
         BidDto bidDto = mapToDto(savedBid);
+        // Async Redis publish to not block response
         auctionLiveUpdateService.scheduleBidPlaced(product.getId(), bidDto);
 
         return bidDto;

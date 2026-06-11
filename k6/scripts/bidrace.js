@@ -1,7 +1,9 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
+import { Rate } from "k6/metrics";
 
 export const options = {
+  setupTimeout: "2m",
   stages: [
     { duration: "1m", target: 10 },
     { duration: "2m", target: 10 },
@@ -21,11 +23,18 @@ export const options = {
   }
 };
 
+http.setResponseCallback(http.expectedStatuses(200, 400, 403, 409));
+
 const BASE_URL = __ENV.BASE_URL;
 const PRODUCT_ID = Number(__ENV.PRODUCT_ID);
-const START_BID = Number(__ENV.START_BID || "1000");
-const STEP = Number(__ENV.STEP || "10");
-const USERS = JSON.parse(open("../data/users.json"));
+const START_BID = Number(__ENV.START_BID || "200");
+const STEP = Number(__ENV.STEP || "110");
+const USER_LIMIT = Number(__ENV.USER_LIMIT || "100");
+const USERS = JSON.parse(open("../data/users.json")).slice(0, USER_LIMIT);
+
+const bidAcceptedRate = new Rate("bid_accepted_rate");
+const bidBusinessRejectRate = new Rate("bid_business_reject_rate");
+const bidUnexpectedFailRate = new Rate("bid_unexpected_fail_rate");
 
 export function setup() {
   const tokens = {};
@@ -58,7 +67,10 @@ export default function (data) {
   const user = USERS[(__VU - 1) % USERS.length];
   const token = data.tokens[user.username];
 
-  const amount = START_BID + (__ITER * STEP) + __VU;
+  // Use a globally increasing bid sequence so each attempt is comfortably above
+  // the prior one, while still allowing legitimate race-lost responses.
+  const sequence = (__ITER * USERS.length) + ((__VU - 1) % USERS.length);
+  const amount = START_BID + (sequence * STEP);
 
   const res = http.post(
     `${BASE_URL}/api/bids`,
@@ -74,6 +86,10 @@ export default function (data) {
       tags: { name: "place_bid" }
     }
   );
+
+  bidAcceptedRate.add(res.status === 200);
+  bidBusinessRejectRate.add([400, 403, 409].includes(res.status));
+  bidUnexpectedFailRate.add(![200, 400, 403, 409].includes(res.status));
 
   check(res, {
     "bid accepted or rejected cleanly": (r) =>

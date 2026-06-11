@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -51,6 +52,7 @@ public class AuctionLiveUpdateService {
         publishBidPlaced(productId, latestBid);
     }
 
+    @Async("redisExecutor")
     public void refreshAndPublish(Long productId, String eventType) {
         try {
             AuctionLiveEvent event = auctionLiveStateService.buildEvent(productId, eventType);
@@ -62,13 +64,15 @@ public class AuctionLiveUpdateService {
         }
     }
 
-    private void publishBidPlaced(Long productId, BidDto latestBid) {
+    @Async("redisExecutor")
+    public void publishBidPlaced(Long productId, BidDto latestBid) {
         try {
             AuctionLiveEvent event = auctionLiveStateService.buildBidPlacedEvent(productId, latestBid);
             auctionRedisCacheService.cacheSummary(event.getSummary());
             stringRedisTemplate.convertAndSend(auctionUpdatesTopic.getTopic(), objectMapper.writeValueAsString(event));
         } catch (Exception exception) {
             log.warn("Failed to publish bid-placed live update for product {}", productId, exception);
+            // Fallback: refresh full state async
             refreshAndPublish(productId, "BID_PLACED");
         }
     }

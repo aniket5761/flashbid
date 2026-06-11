@@ -36,8 +36,9 @@ docker run --rm -i \
   -w /work/k6 \
   -e BASE_URL="https://flashbid-production-e7f4.up.railway.app" \
   -e PRODUCT_ID="7" \
-  -e START_BID="1000" \
-  -e STEP="10" \
+  -e USER_LIMIT="100" \
+  -e START_BID="200" \
+  -e STEP="110" \
   grafana/k6 run scripts/bidrace.js
 ```
 

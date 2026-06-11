@@ -22,6 +22,10 @@ public class Auction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false, unique = true)
     private Product product;
