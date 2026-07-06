@@ -24,3 +24,5 @@ target/
 /roadmap
 *.log
 .env
+
+report.txt

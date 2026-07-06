@@ -1,4 +1,4 @@
-package com.flashbid.bid.service;
+package com.example.flashbid.bid.service;
 
 import com.example.flashbid.auction.entity.Auction;
 import com.example.flashbid.auction.repo.AuctionRepo;

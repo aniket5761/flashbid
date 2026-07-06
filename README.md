@@ -1,79 +1,161 @@
 # FlashBid
 
-FlashBid is a full-stack real-time auction platform with a Spring Boot backend, a React frontend, and a dedicated k6 load-testing workspace.
+> A full-stack real-time auction platform built with React, Spring Boot,
+> PostgreSQL, Redis, and WebSockets.
 
-## Repository Layout
+FlashBid enables users to browse products, participate in live auctions,
+and place bids with instant updates. The platform combines a React
+frontend with a Spring Boot backend that provides authentication,
+business logic, persistence, and real-time communication.
 
-- `backend/`
-  Spring Boot API, Maven wrapper, Dockerfile, backend report, source code, tests, and build artifacts.
-- `frontend/`
-  React + Vite client application.
-- `k6/`
-  Load-test scripts, test-user data, and saved results.
-- `docker-compose.yml`
-  Root orchestration file for local backend infrastructure and the backend container.
+------------------------------------------------------------------------
+
+## Table of Contents
+
+-   Project Overview
+-   Main Features
+-   Tech Stack
+-   Repository Structure
+-   High-Level Architecture
+-   How to Run Locally
+-   Related Documentation
+
+------------------------------------------------------------------------
+
+## Project Overview
+
+FlashBid is a full-stack real-time auction platform where users can
+browse products, place bids, and follow live auction activity as it
+happens.
+
+The application consists of:
+
+-   **React + Vite** frontend for a responsive user experience
+-   **Spring Boot** backend for authentication, business logic, and APIs
+-   **WebSockets (STOMP)** for live auction updates
+-   **PostgreSQL** for persistent data storage
+-   **Redis** for real-time auction state and event distribution
+
+## Features
+
+### Authentication & Security
+- Secure user registration and login
+- JWT-based authentication
+- Role-based access control (User, Seller, Admin)
+
+### Auction Experience
+- Browse active auction listings
+- View detailed product information
+- Place bids in real time
+- Receive live auction updates via WebSockets
+
+### Seller Dashboard
+- Create and publish auction listings
+- Manage products and auctions
+- Monitor auction activity
+
+### Real-Time Communication
+- Instant bid synchronization
+- Live auction event broadcasting
+- Redis-backed event distribution
+
+### Developer Experience
+- Interactive Swagger/OpenAPI documentation
+- Docker Compose for local development
+- Modular frontend and backend architecture
+
+## Tech Stack
+
+| Category | Technologies |
+|----------|--------------|
+| **Frontend** | React, Vite, React Router, Axios |
+| **Backend** | Java 21, Spring Boot, Spring Security, Spring Data JPA |
+| **Real-Time Communication** | Spring WebSocket (STOMP), Redis |
+| **Database** | PostgreSQL |
+| **Authentication** | JWT (JSON Web Token) |
+| **API Documentation** | Swagger / OpenAPI |
+| **Development & Deployment** | Docker, Docker Compose |
+
+## Repository Structure
+
+``` text
+FlashBid/
+├── backend/              # Spring Boot API
+├── frontend/             # React application
+├── docker-compose.yml    # Local infrastructure
+└── README.md
+```
+
+------------------------------------------------------------------------
 
 ## Architecture
 
-```text
-frontend/  -> React + Vite UI
-backend/   -> Spring Boot API + PostgreSQL + Redis integration
-k6/        -> Load and concurrency testing scripts
+The frontend communicates with the backend in two ways:
+
+-   REST API calls for authentication, products, users, bids, and
+    auction actions
+-   WebSocket (STOMP) connections for live auction updates
+
+The backend stores application data in PostgreSQL while Redis supports
+live auction state and event distribution.
+
+### Architecture Diagram
+
+``` mermaid
+flowchart LR
+    U[User Browser] --> F[Frontend<br/>React + Vite]
+    F -->|HTTP REST API| B[Backend<br/>Spring Boot]
+    F -->|WebSocket / STOMP| B
+    B -->|Persistent Storage| DB[(PostgreSQL)]
+    B -->|Live State / Pub-Sub| R[(Redis)]
 ```
 
-## Local Development
+------------------------------------------------------------------------
 
-### Backend
+## How to Run Locally
 
-From `backend/`:
+### Prerequisites
 
-```bash
-./mvnw spring-boot:run
+-   Docker and Docker Compose installed
+-   Node.js and npm installed
+
+### 1. Start the Backend Stack
+
+From the project root:
+
+``` bash
+docker compose up -d
 ```
 
-### Frontend
+This starts:
 
-From `frontend/`:
+-   PostgreSQL (`localhost:5432`)
+-   Redis (`localhost:6379`)
+-   Spring Boot Backend (`localhost:8080`)
 
-```bash
+> **Note**
+>
+> Docker Compose starts PostgreSQL, Redis, and the backend service. The
+> React frontend is started separately.
+
+### 2. Start the Frontend
+
+From the `frontend/` directory:
+
+``` bash
 npm install
-VITE_API_BASE_URL=http://localhost:8080 VITE_WS_BASE_URL=http://localhost:8080 npm run dev
+npm run dev
 ```
 
-### Docker Compose
+Application URLs:
 
-From the repository root:
+-   Frontend: http://localhost:5173
+-   Backend API: http://localhost:8080
+-   Swagger UI: http://localhost:8080/swagger-ui/index.html
 
-```bash
-docker-compose up --build
-```
+------------------------------------------------------------------------
 
-This starts PostgreSQL, Redis, and the backend using the Dockerfile in `backend/`.
+## Related Documentation
 
-## Load Testing
-
-The load-testing assets now live under `k6/`.
-
-- k6 guide: [k6/README.md](/home/aniket/IdeaProjects/flashbid/k6/README.md)
-- frontend guide: [frontend/README.md](/home/aniket/IdeaProjects/flashbid/frontend/README.md)
-- backend guide: [backend/README.md](/home/aniket/IdeaProjects/flashbid/backend/README.md)
-
-Browse test from the repo root:
-
-```bash
-docker run --rm -i \
-  -v "$PWD:/work" \
-  -w /work/k6 \
-  -e BASE_URL="https://flashbid-production-e7f4.up.railway.app" \
-  -e PRODUCT_ID="7" \
-  grafana/k6 run scripts/browse.js
-```
-
-## Key Features
-
-- JWT authentication
-- Product listing and detail flows
-- Real-time bidding with websocket updates
-- Redis-backed live auction state
-- PostgreSQL persistence
-- k6-based concurrency testing
+-   Backend: [backend/README.md](backend/README.md)
+-   Frontend: [frontend/README.md](frontend/README.md)
