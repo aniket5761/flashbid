@@ -3,26 +3,22 @@ spring:
     url: jdbc:postgresql://localhost:5432/flashbid
     username: user
     password: password
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
 
   data:
     redis:
       host: localhost
       port: 6379
-      # host: localhost
-      # port: 6379
 
-  jwt:
-    secret: thisisthesecretkeythisisthesecretkeythisisthesecretkey
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+jwt:
+  secret: thisisthesecretkeythisisthesecretkeythisisthesecretkey
 
 app:
-  timezone: Asia/Kolkata
   redis:
     pubsub-enabled: true
-
-logging:
-  level:
-    root: INFO
+    
+  allowed-origins: http://localhost:5173

@@ -35,7 +35,7 @@ public class SecurityConfig {
     private final JWTAuthFilter jwtAuthFilter;
     private final UserInfoService userInfoService;
     
-    @Value("${APP_ALLOWED_ORIGINS:http://localhost:5173}")
+    @Value("${APP_ALLOWED_ORIGINS}")
     private String allowedOrigins;
 
     @Bean

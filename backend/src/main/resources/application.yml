@@ -1,23 +1,6 @@
 server:
   port: ${PORT:8080}
 
-spring:
-  datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-  # jpa:
-  #   hibernate:
-  #     ddl-auto: update
-
-  # directly comes from env variables helps to avoid conflict in local development
-  # data:
-  #   redis:
-  #     url: ${SPRING_DATA_REDIS_URL}
-
-
-  jwt:
-    secret: ${SPRING_JWT_SECRET}
 
 logging:
   level:
@@ -25,8 +8,7 @@ logging:
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
-  redis:
-    pubsub-enabled: ${APP_REDIS_PUBSUB_ENABLED:false}
+
 
 springdoc:
   api-docs:
